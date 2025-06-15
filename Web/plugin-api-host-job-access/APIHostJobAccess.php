@@ -308,7 +308,7 @@ class APIHostJobAccess extends BacularisWebPluginBase implements IBacularisActio
 			$acls['Name']
 		], [
 			'config' => json_encode($acls)
-		], $api_host);
+		], $api_host, false);
 
 		$saved = false;
 		if ($result->error === 0) {
