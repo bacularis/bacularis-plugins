@@ -44,10 +44,10 @@ where:
 
 
 Installing the web interface plugin can look like below. This is example for
-the API host job access plugin:
+the API host job access plugin and Bacularis installed using binary packages:
 
 ```
-cp ./Web/plugin-api-host-job-access/* {PROJECT_DIR}/protected/vendor/bacularis/bacularis-web/Web/Plugins/
+cp ./Web/plugin-api-host-job-access/* /usr/share/bacularis/protected/vendor/bacularis/bacularis-web/Web/Plugins/
 ```
 
 ### Step 2 - configure plugin
