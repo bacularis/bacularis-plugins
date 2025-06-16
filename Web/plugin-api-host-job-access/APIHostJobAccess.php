@@ -270,7 +270,9 @@ class APIHostJobAccess extends BacularisWebPluginBase implements IBacularisActio
 			'StorageAcl' => [],
 			'FilesetAcl' => [],
 			'PoolAcl' => [],
-			'ScheduleAcl' => [],
+			'ScheduleAcl' => []
+		];
+		$to_new_acls = [
 			'CatalogAcl' => ['*all*'],
 			'WhereAcl' => ['*all*'],
 			'CommandAcl' => JobInfo::COMMAND_ACL_USED_BY_WEB
@@ -299,6 +301,9 @@ class APIHostJobAccess extends BacularisWebPluginBase implements IBacularisActio
 			}
 		}
 
+		// Add default fields for new Console ACL
+		$acls = array_merge($acls, $to_new_acls);
+
 		// Create console
 		$api = $this->getModule('api');
 		$result = $api->create([
@@ -316,14 +321,51 @@ class APIHostJobAccess extends BacularisWebPluginBase implements IBacularisActio
 			$saved = true;
 		} elseif ($result->error === BaculaConfigError::ERROR_CONFIG_ALREADY_EXISTS) {
 			// Console exists, update it
-			$result = $api->set([
+
+			// Filter only values required for update, without updating the rest
+			$acls = array_filter(
+				$acls,
+				fn ($key) => !key_exists($key, $to_new_acls),
+				ARRAY_FILTER_USE_KEY
+			);
+
+			$result = $api->get([
 				'config',
 				'dir',
 				'Console',
 				$acls['Name']
-			], [
-				'config' => json_encode($acls)
 			], $api_host);
+
+			if ($result->error === 0) {
+				$console = json_decode(json_encode($result->output), true);
+				foreach ($acls as $directive_name => $directive_value) {
+					if (key_exists($directive_name, $console)) {
+						// Directive exists in console, update it
+						if (is_array($console[$directive_name])) {
+							$console[$directive_name] = array_values(
+								array_unique(
+									array_merge($console[$directive_name], $directive_value)
+								)
+							);
+						} else {
+							$console[$directive_name] = $directive_value;
+						}
+					} else {
+						// Directive does not exist in console, add it
+						$console[$directive_name] = $directive_value;
+					}
+				}
+				$acls = $console;
+
+				$result = $api->set([
+					'config',
+					'dir',
+					'Console',
+					$acls['Name']
+				], [
+					'config' => json_encode($acls)
+				], $api_host);
+			}
 			$saved = ($result->error === 0);
 		}
 		$ret = '';
