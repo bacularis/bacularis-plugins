@@ -53,7 +53,7 @@ class APIHostJobAccess extends BacularisWebPluginBase implements IBacularisActio
 	 */
 	public static function getVersion(): string
 	{
-		return '1.0.0';
+		return '1.0.1';
 	}
 
 	/**
@@ -262,7 +262,7 @@ class APIHostJobAccess extends BacularisWebPluginBase implements IBacularisActio
 	{
 		// Prepare the console configuration
 		$crypto = $this->getModule('crypto');
-		$acls = [
+		$acls_base = [
 			'Name' => 'Console - ' . $api_host,
 			'Password' => $crypto->getRandomString(40),
 			'JobAcl' => [],
@@ -279,30 +279,30 @@ class APIHostJobAccess extends BacularisWebPluginBase implements IBacularisActio
 		];
 		for ($i = 0; $i < count($job_res); $i++) {
 			// job
-			$acls['JobAcl'][] = $job_res[$i]->Job->Name;
+			$acls_base['JobAcl'][] = $job_res[$i]->Job->Name;
 			// client
-			if (!in_array($job_res[$i]->Job->Client, $acls['ClientAcl'])) {
-				$acls['ClientAcl'][] = $job_res[$i]->Job->Client;
+			if (!in_array($job_res[$i]->Job->Client, $acls_base['ClientAcl'])) {
+				$acls_base['ClientAcl'][] = $job_res[$i]->Job->Client;
 			}
 			// storage
-			$acls['StorageAcl'] = array_merge($acls['StorageAcl'], $job_res[$i]->Job->Storage);
-			$acls['StorageAcl'] = array_unique($acls['StorageAcl']);
+			$acls_base['StorageAcl'] = array_merge($acls_base['StorageAcl'], $job_res[$i]->Job->Storage);
+			$acls_base['StorageAcl'] = array_unique($acls_base['StorageAcl']);
 			// fileset
-			if (!in_array($job_res[$i]->Job->Fileset, $acls['FilesetAcl'])) {
-				$acls['FilesetAcl'][] = $job_res[$i]->Job->Fileset;
+			if (!in_array($job_res[$i]->Job->Fileset, $acls_base['FilesetAcl'])) {
+				$acls_base['FilesetAcl'][] = $job_res[$i]->Job->Fileset;
 			}
 			// pool
-			if (!in_array($job_res[$i]->Job->Pool, $acls['PoolAcl'])) {
-				$acls['PoolAcl'][] = $job_res[$i]->Job->Pool;
+			if (!in_array($job_res[$i]->Job->Pool, $acls_base['PoolAcl'])) {
+				$acls_base['PoolAcl'][] = $job_res[$i]->Job->Pool;
 			}
 			// schedule
-			if (property_exists($job_res[$i]->Job, 'Schedule') && !in_array($job_res[$i]->Job->Schedule, $acls['ScheduleAcl'])) {
-				$acls['ScheduleAcl'][] = $job_res[$i]->Job->Schedule;
+			if (property_exists($job_res[$i]->Job, 'Schedule') && !in_array($job_res[$i]->Job->Schedule, $acls_base['ScheduleAcl'])) {
+				$acls_base['ScheduleAcl'][] = $job_res[$i]->Job->Schedule;
 			}
 		}
 
 		// Add default fields for new Console ACL
-		$acls = array_merge($acls, $to_new_acls);
+		$acls = array_merge($acls_base, $to_new_acls);
 
 		// Create console
 		$api = $this->getModule('api');
@@ -310,7 +310,7 @@ class APIHostJobAccess extends BacularisWebPluginBase implements IBacularisActio
 			'config',
 			'dir',
 			'Console',
-			$acls['Name']
+			$acls_base['Name']
 		], [
 			'config' => json_encode($acls)
 		], $api_host, false);
@@ -321,24 +321,16 @@ class APIHostJobAccess extends BacularisWebPluginBase implements IBacularisActio
 			$saved = true;
 		} elseif ($result->error === BaculaConfigError::ERROR_CONFIG_ALREADY_EXISTS) {
 			// Console exists, update it
-
-			// Filter only values required for update, without updating the rest
-			$acls = array_filter(
-				$acls,
-				fn ($key) => !key_exists($key, $to_new_acls),
-				ARRAY_FILTER_USE_KEY
-			);
-
 			$result = $api->get([
 				'config',
 				'dir',
 				'Console',
-				$acls['Name']
+				$acls_base['Name']
 			], $api_host);
 
 			if ($result->error === 0) {
 				$console = json_decode(json_encode($result->output), true);
-				foreach ($acls as $directive_name => $directive_value) {
+				foreach ($acls_base as $directive_name => $directive_value) {
 					if (key_exists($directive_name, $console)) {
 						// Directive exists in console, update it
 						if (is_array($console[$directive_name])) {
@@ -355,15 +347,14 @@ class APIHostJobAccess extends BacularisWebPluginBase implements IBacularisActio
 						$console[$directive_name] = $directive_value;
 					}
 				}
-				$acls = $console;
 
 				$result = $api->set([
 					'config',
 					'dir',
 					'Console',
-					$acls['Name']
+					$acls_base['Name']
 				], [
-					'config' => json_encode($acls)
+					'config' => json_encode($console)
 				], $api_host);
 			}
 			$saved = ($result->error === 0);
@@ -372,7 +363,7 @@ class APIHostJobAccess extends BacularisWebPluginBase implements IBacularisActio
 		if ($saved) {
 			// Config saved, reload it now
 			$api->set(['console'], ['reload']);
-			$ret = $acls['Name'];
+			$ret = $acls_base['Name'];
 		}
 		return $ret;
 	}
