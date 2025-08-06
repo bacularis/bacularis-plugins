@@ -287,6 +287,7 @@ class APIHostJobAccess extends BacularisWebPluginBase implements IBacularisActio
 			// storage
 			$acls_base['StorageAcl'] = array_merge($acls_base['StorageAcl'], $job_res[$i]->Job->Storage);
 			$acls_base['StorageAcl'] = array_unique($acls_base['StorageAcl']);
+			$acls_base['StorageAcl'] = array_values($acls_base['StorageAcl']);
 			// fileset
 			if (!in_array($job_res[$i]->Job->Fileset, $acls_base['FilesetAcl'])) {
 				$acls_base['FilesetAcl'][] = $job_res[$i]->Job->Fileset;
