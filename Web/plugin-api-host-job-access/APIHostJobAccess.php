@@ -53,7 +53,7 @@ class APIHostJobAccess extends BacularisWebPluginBase implements IBacularisActio
 	 */
 	public static function getVersion(): string
 	{
-		return '1.0.1';
+		return '1.0.2';
 	}
 
 	/**
